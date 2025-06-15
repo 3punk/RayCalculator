@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/x-icon" href="asset/calculator-svgrepo-com.svg">
+<title>Kalkulator EAS Ray</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Material+Icons" rel="stylesheet" />
+<style>
+  /* Reset */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #cfc1b4, #eacdc7);
+    color: #2c2c2c;
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 32px;
+  }
+
+  .calculator {
+    width: 320px;
+    background: rgba(229, 230, 216, 0.7); /* semi-transparent #e5e6d8 */
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    box-shadow:
+      0 10px 30px rgba(0, 0, 0, 0.1),
+      inset 0 0 0 1px rgba(255 255 255 / 0.3);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .display {
+    background: #f0e3d3;
+    padding: 24px 32px;
+    text-align: right;
+    font-size: 2.8rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #4a4134;
+    min-height: 90px;
+    user-select: none;
+    border-bottom: 1px solid rgba(255 255 255 / 0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .display small {
+    font-size: 1rem;
+    color: #7a6f65; /* darker taupe */
+    opacity: 0.7;
+    min-height: 1.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  form {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-gap: 16px;
+    padding: 24px 24px 32px;
+    background: #e5e6d8;
+    border-radius: 0 0 24px 24px;
+  }
+
+  button {
+    background: #cfc1b4;
+    border: none;
+    border-radius: 16px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #4a4134;
+    padding: 20px 0;
+    cursor: pointer;
+    box-shadow:
+      0 4px 15px rgba(0, 0, 0, 0.1);
+    transition:
+      background-color 0.25s ease,
+      transform 0.2s ease,
+      box-shadow 0.25s ease;
+    user-select: none;
+  }
+
+  button:focus {
+    outline: 3px solid #eacdc7; /* highlight with #eacdc7 */
+    outline-offset: 2px;
+  }
+
+  button:hover {
+    background: #eacdc7;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(186, 157, 143, 0.5);
+  }
+
+  button.operator {
+    background: linear-gradient(135deg, #eacdc7, #cfc1b4);
+    box-shadow: 0 6px 20px rgba(186, 157, 143, 0.8);
+  }
+  button.operator:hover {
+    background: linear-gradient(135deg, #d9bdb8, #b9aa9c);
+  }
+
+  button.zero {
+    grid-column: span 2;
+  }
+
+  @media (max-width: 400px) {
+    .calculator {
+      width: 100%;
+      max-width: 360px;
+    }
+    .display {
+      font-size: 2.1rem;
+    }
+    button {
+      font-size: 1.25rem;
+      padding: 16px 0;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="calculator" role="application" aria-label="Calculator">
+    <div class="display" aria-live="polite" aria-atomic="true" id="display">0<small id="subDisplay"></small></div>
+    <form id="calcForm" aria-describedby="instructions">
+      <!-- Clear -->
+      <button type="button" id="clear" aria-label="Clear input or reset calculator">C</button>
+      <!-- Backspace -->
+      <button type="button" id="backspace" aria-label="Remove last character">⌫</button>
+      <!-- Empty placeholder for spacing -->
+      <div></div>
+      <button type="button" class="operator" data-op="/">÷</button>
+
+      <button type="button" data-num="7">7</button>
+      <button type="button" data-num="8">8</button>
+      <button type="button" data-num="9">9</button>
+      <button type="button" class="operator" data-op="*">×</button>
+
+      <button type="button" data-num="4">4</button>
+      <button type="button" data-num="5">5</button>
+      <button type="button" data-num="6">6</button>
+      <button type="button" class="operator" data-op="-">−</button>
+
+      <button type="button" data-num="1">1</button>
+      <button type="button" data-num="2">2</button>
+      <button type="button" data-num="3">3</button>
+      <button type="button" class="operator" data-op="+">+</button>
+
+      <button type="button" class="zero" data-num="0">0</button>
+      <button type="button" data-num=".">.</button>
+      <button type="submit" id="equals" aria-label="Calculate result">=</button>
+    </form>
+  </div>
+
+<script>
+  (() => {
+    const display = document.getElementById('display');
+    const subDisplay = document.getElementById('subDisplay');
+    const form = document.getElementById('calcForm');
+    let currentInput = '0';       // Current number being entered
+    let previousInput = null;     // Stored number for operation
+    let currentOperator = null;   // Current operator (+, -, *, /)
+    let resetNext = false;        // Should the input reset upon next number input
+    let prevOperation = '';       // String showing the previous operation for subDisplay
+
+    function updateDisplay() {
+      display.textContent = currentInput;
+      subDisplay.textContent = prevOperation;
+    }
+
+    function appendNumber(num) {
+      if (resetNext) {
+        currentInput = '0';
+        resetNext = false;
+      }
+      // Prevent multiple decimals
+      if (num === '.' && currentInput.includes('.')) return;
+      // Remove leading zero unless decimal entered
+      if (currentInput === '0' && num !== '.') {
+        currentInput = num;
+      } else {
+        currentInput += num;
+      }
+    }
+
+    // Called when user clicks an operator button
+    function chooseOperator(op) {
+      if (currentOperator !== null) {
+        // Calculate immediately whenever choosing a new operator — supports chaining
+        calculate();
+      }
+      previousInput = currentInput;
+      currentOperator = op;
+      resetNext = true;
+      prevOperation = `${previousInput} ${currentOperator}`;
+    }
+
+    // Perform calculation and store result in currentInput
+    function calculate() {
+      if (currentOperator === null || resetNext) return;
+      const prev = parseFloat(previousInput);
+      const current = parseFloat(currentInput);
+      if (isNaN(prev) || isNaN(current)) return;
+
+      let computation;
+      switch (currentOperator) {
+        case '+': computation = prev + current; break;
+        case '-': computation = prev - current; break;
+        case '*': computation = prev * current; break;
+        case '/':
+          if (current === 0) {
+            alert("Error: Division by zero is not allowed.");
+            resetCalculator();
+            return;
+          }
+          computation = prev / current; break;
+        default: return;
+      }
+      currentInput = computation.toString();
+      prevOperation = '';
+      currentOperator = null;
+      previousInput = null;
+      resetNext = true;
+    }
+
+    function resetCalculator() {
+      currentInput = '0';
+      previousInput = null;
+      currentOperator = null;
+      resetNext = false;
+      prevOperation = '';
+    }
+
+    function backspace() {
+      if (resetNext) return; // Ignore backspace if just computed
+      if (currentInput.length === 1) {
+        currentInput = '0';
+      } else {
+        currentInput = currentInput.slice(0, -1);
+      }
+    }
+
+    // Initialize display
+    updateDisplay();
+
+    form.addEventListener('click', e => {
+      if (e.target.tagName !== 'BUTTON') return;
+
+      const btn = e.target;
+      if (btn.id === 'clear') {
+        resetCalculator();
+        updateDisplay();
+        return;
+      }
+      if (btn.id === 'backspace') {
+        backspace();
+        updateDisplay();
+        return;
+      }
+      if (btn.hasAttribute('data-num')) {
+        appendNumber(btn.getAttribute('data-num'));
+        updateDisplay();
+        return;
+      }
+      if (btn.classList.contains('operator')) {
+        chooseOperator(btn.getAttribute('data-op'));
+        updateDisplay();
+        return;
+      }
+      if (btn.id === 'equals') {
+        calculate();
+        updateDisplay();
+        return;
+      }
+    });
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      calculate();
+      updateDisplay();
+    });
+  })();
+</script>
+
+</body>
+</html>
+
